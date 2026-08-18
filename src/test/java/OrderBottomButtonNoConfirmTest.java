@@ -1,9 +1,9 @@
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
 import pages.OrderPage;
+import util.DriverFactory;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,15 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 // нажимается "Нет" — заказ не должен оформляться, форма должна остаться открытой.
 public class OrderBottomButtonNoConfirmTest {
     private WebDriver driver;
-    private OrderPage orderPage;
-
-    @BeforeEach
-    void setUp() {
-        driver = new ChromeDriver();
-        driver.manage().window().maximize();
-        orderPage = new OrderPage(driver);
-        orderPage.open("https://qa-scooter.education-services.ru/");
-    }
 
     @AfterEach
     void tearDown() {
@@ -29,8 +20,13 @@ public class OrderBottomButtonNoConfirmTest {
         }
     }
 
-    @Test
-    void clickingNoDoesNotCreateOrderTest() {
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"chrome", "firefox"})
+    void clickingNoDoesNotCreateOrderTest(String browser) {
+        driver = DriverFactory.createDriver(browser);
+        OrderPage orderPage = new OrderPage(driver);
+        orderPage.open("https://qa-scooter.education-services.ru/");
+
         orderPage.clickBottomOrderButton();
         orderPage.fillCustomerForm("Иван", "Петров", "ул. Ленина, д. 5", "89123456789");
         orderPage.fillRentalForm("18.08.2026", "сутки", "серая безысходность", "Позвонить за час");

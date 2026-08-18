@@ -1,13 +1,12 @@
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import pages.MainPage;
+import util.DriverFactory;
 
 import java.time.Duration;
 import java.util.List;
@@ -20,15 +19,26 @@ import static pages.MainPage.*;
 
 public class AccordionTest {
     private WebDriver driver;
-    private WebDriverWait wait;
 
-    @BeforeEach
-    void setUp() {
-        driver = new ChromeDriver();
-        // Маленькое дефолтное окно ChromeDriver может переключать адаптивную вёрстку
-        // в мобильный режим и ломать десктоп-локаторы
-        driver.manage().window().maximize();
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+    //проверяем все вопросы во всех браузерах
+    static Stream<Arguments> browserAndFaqData() {
+        return Stream.of("chrome", "firefox")
+                .flatMap(browser -> getFAQData().entrySet().stream()
+                        .map(entry -> Arguments.of(browser, entry.getKey(), entry.getValue())));
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (driver != null) {
+            driver.quit();
+        }
+    }
+
+    @ParameterizedTest(name = "{0}: Вопрос: {1}")
+    @MethodSource("browserAndFaqData")
+    void accordionOpensCorrectAnswer(String browser, String questionText, String expectedAnswer) {
+        driver = DriverFactory.createDriver(browser);
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         driver.get("https://qa-scooter.education-services.ru/");
 
         // Закрываем баннер про куки — иначе он иногда перекрывает последний вопрос
@@ -37,29 +47,12 @@ public class AccordionTest {
         if (!cookieButton.isEmpty()) {
             cookieButton.get(0).click();
         }
-    }
 
-    @AfterEach
-    public void teardown() {
-        driver.quit();
-    }
-
-    static Stream<Arguments> faqData() {
-        return getFAQData().entrySet().stream()
-                .map(entry -> Arguments.of(entry.getKey(), entry.getValue()));
-    }
-
-    @ParameterizedTest(name = "Вопрос: {0}")
-    @MethodSource("faqData")
-    void accordionOpensCorrectAnswer(String questionText, String expectedAnswer) {
         WebElement faqTitle = wait.until(ExpectedConditions.presenceOfElementLocated(MainPage.faqTitle));
         ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block: 'center'});", faqTitle);
 
-        System.out.println("Проверяем вопрос: " + questionText);
+        System.out.println("[" + browser + "] Проверяем вопрос: " + questionText);
 
-        // Находим вопрос по тексту. contains(., ...) берёт текст со всех потомков —
-        // сам текст вопроса лежит не прямо в accordion__heading, а во вложенной кнопке,
-        // поэтому contains(text(), ...) вопрос не находил.
         WebElement question = driver.findElement(
                 By.xpath("//div[contains(@class, 'accordion__heading') and contains(., '" + questionText + "')]")
         );
@@ -86,6 +79,6 @@ public class AccordionTest {
         assertTrue(panel.isDisplayed(),
                 "Панель с ответом должна быть видна для вопроса: " + questionText);
 
-        System.out.println(" - Вопрос '" + questionText + "' успешно проверен");
+        System.out.println(" - [" + browser + "] Вопрос '" + questionText + "' успешно проверен");
     }
 }

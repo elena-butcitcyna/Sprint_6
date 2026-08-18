@@ -1,11 +1,13 @@
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
 import pages.OrderPage;
+import util.DriverFactory;
+
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,15 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 // "Заказать" (после блока "Как это работает"), а не через верхнюю в шапке.
 public class OrderBottomButtonTest {
     private WebDriver driver;
-    private OrderPage orderPage;
-
-    @BeforeEach
-    void setUp() {
-        driver = new ChromeDriver();
-        driver.manage().window().maximize();
-        orderPage = new OrderPage(driver);
-        orderPage.open("https://qa-scooter.education-services.ru/");
-    }
 
     @AfterEach
     void tearDown() {
@@ -30,17 +23,24 @@ public class OrderBottomButtonTest {
         }
     }
 
-    @ParameterizedTest(name = "Нижняя кнопка \"Заказать\": {0} {1}")
-    // delimiterString — см. комментарий в OrderTopButtonTest: адрес содержит запятую,
-    // со стандартным разделителем-запятой CsvSource молча сдвигал все параметры.
-    @CsvSource(delimiterString = ";", value = {
-            // Имя; Фамилия; Адрес; Телефон; Дата; Срок аренды; Цвет; Комментарий
-            "Иван; Петров; ул. Ленина, д. 5; 89123456789; 18.08.2026; сутки; чёрный жемчуг; Приехать к 10:00",
-            "Мария; Иванова; Невский пр., 10; 89221234567; 20.08.2026; двое суток; серая безысходность; Позвонить за час"
-    })
-    void positiveOrderFlowFromBottomButtonTest(String firstName, String lastName, String address,
-                                                String phone, String date,
-                                                String rentalPeriod, String color, String comment) {
+    static Stream<Arguments> browserAndOrderData() {
+        return Stream.of("chrome", "firefox")
+                .flatMap(browser -> Stream.of(
+                        Arguments.of(browser, "Иван", "Петров", "ул. Ленина, д. 5", "89123456789",
+                                "18.08.2026", "сутки", "чёрный жемчуг", "Приехать к 10:00"),
+                        Arguments.of(browser, "Мария", "Иванова", "Невский пр., 10", "89221234567",
+                                "20.08.2026", "двое суток", "серая безысходность", "Позвонить за час")
+                ));
+    }
+
+    @ParameterizedTest(name = "{0}, Нижняя кнопка \"Заказать\": {1} {2}")
+    @MethodSource("browserAndOrderData")
+    void positiveOrderFlowFromBottomButtonTest(String browser, String firstName, String lastName, String address,
+                                                String phone, String date, String rentalPeriod, String color, String comment) {
+        driver = DriverFactory.createDriver(browser);
+        OrderPage orderPage = new OrderPage(driver);
+        orderPage.open("https://qa-scooter.education-services.ru/");
+
         orderPage.clickBottomOrderButton();
         String metroName = orderPage.fillCustomerForm(firstName, lastName, address, phone);
         System.out.println("Выбрана станция метро: " + metroName);
